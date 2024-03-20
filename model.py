@@ -1,12 +1,11 @@
 import lightning as L
-import torch
 from torch import nn, optim
 from torchvision.models import resnet50, ResNet50_Weights
 from torchmetrics.classification import MultilabelAccuracy, MultilabelPrecision, MultilabelRecall, MultilabelF1Score
 
-class ResNet50(L.LightningModule):
+class ResNet50LightningModule(L.LightningModule):
     def __init__(self, hidden_size:int, output_size:int, transfer:bool, optimizer_config:dict, loss_fn):
-        super(ResNet50, self).__init__()
+        super(ResNet50LightningModule, self).__init__()
 
         # OPTIMIZER & SCHEDULER
         self.learning_rate = optimizer_config["learning_rate"]
@@ -26,25 +25,33 @@ class ResNet50(L.LightningModule):
             nn.ReLU(),
             nn.Linear(2*hidden_size, output_size),
         )
-        if transfer:
+        if transfer == 1:
             self.freeze_pretrained_weights()
 
-        # OUTPUT STORING
+        # METRICS STORING
         self.training_step_outputs = []
         self.validation_step_outputs = []
-
-        # METRICS
+        
+        self.train_acc = MultilabelAccuracy(num_labels=output_size)
+        self.train_prec = MultilabelPrecision(num_labels=output_size, average='weighted')
+        self.train_rec = MultilabelRecall(num_labels=output_size, average='weighted')
+        self.train_f1 = MultilabelF1Score(num_labels=output_size, average='weighted')
         self.train_metrics = {
-            'acc': MultilabelAccuracy(num_labels=output_size),
-            'prec': MultilabelPrecision(num_labels=output_size, average=None),
-            'rec': MultilabelRecall(num_labels=output_size, average=None),
-            'f1': MultilabelF1Score(num_labels=output_size, average=None)
+            'train/acc': self.train_acc,
+            'train/prec': self.train_prec,
+            'train/rec': self.train_rec,
+            'train/f1': self.train_f1
         }
+        
+        self.val_acc = MultilabelAccuracy(num_labels=output_size)
+        self.val_prec = MultilabelPrecision(num_labels=output_size, average='weighted')
+        self.val_rec = MultilabelRecall(num_labels=output_size, average='weighted')
+        self.val_f1 = MultilabelF1Score(num_labels=output_size, average='weighted')
         self.val_metrics = {
-            'acc': MultilabelAccuracy(num_labels=output_size),
-            'prec': MultilabelPrecision(num_labels=output_size, average=None),
-            'rec': MultilabelRecall(num_labels=output_size, average=None),
-            'f1': MultilabelF1Score(num_labels=output_size, average=None)
+            'val/acc': self.val_acc,
+            'val/prec': self.val_prec,
+            'val/rec': self.val_rec,
+            'val/f1': self.val_f1
         }
 
     # CORE LIGHTNING FUNCTIONS
@@ -56,7 +63,7 @@ class ResNet50(L.LightningModule):
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=self.step_size, gamma=self.gamma)
         return {
             "optimizer": optimizer,
-            "scheduler": scheduler
+            "lr_scheduler": scheduler
         }
     
     def training_step(self, train_batch, batch_idx):
