@@ -1,7 +1,10 @@
 .venv/
 pascal_voc_2007_data/
+oxford_iiit_pet_data/
 __pycache__/
 runs/
+runs_new/
 filters/
 labels/
 checkpoints/
+checkpoints_new/
